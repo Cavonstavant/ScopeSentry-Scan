@@ -1,3 +1,27 @@
+# ScopeSentry-Scan: multi-stage build that compiles the binary from source, so
+# it works from a plain checkout or a git-URL build context (no dist/ needed).
+# linux/amd64 only, because tools/linux/* are amd64 binaries:
+#   docker build --platform linux/amd64 -f dockerfile -t scopesentry-scan .
+
+ARG GO_VERSION=1.24
+
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-bookworm AS builder
+ARG TARGETOS
+ARG TARGETARCH
+RUN if [ "${TARGETOS}/${TARGETARCH}" != "linux/amd64" ]; then \
+      echo "ScopeSentry-Scan must be built for linux/amd64 (tools/linux/* are amd64 binaries): use --platform linux/amd64" >&2; \
+      exit 1; \
+    fi
+WORKDIR /src
+# Whole repo: go.mod has replace directives pointing at ./libs/*.
+COPY . .
+# CGO is not needed: with CGO_ENABLED=0, pebble and go-rpmutils use their pure-Go
+# code paths instead of DataDog/zstd, so this cross-compiles without emulation.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags "-s -w" -o /out/ScopeSentry-Scan ./cmd/ScopeSentry/main.go
+
 FROM python:3.7-slim
 
 WORKDIR /apps
@@ -20,8 +44,8 @@ RUN apt-get update && apt-get install -y \
 
 
 RUN pip install uro
-# 拷贝当前目录下的可执行文件到容器中
-COPY dist/ScopeSentry-Scan_linux_amd64_v1/ScopeSentry-Scan /apps/ScopeSentry-Scan
+# 拷贝构建阶段编译好的可执行文件到容器中
+COPY --from=builder /out/ScopeSentry-Scan /apps/ScopeSentry-Scan
 RUN chmod +x /apps/ScopeSentry-Scan
 RUN mkdir /apps/ext
 RUN mkdir /apps/ext/rad
@@ -43,7 +67,7 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' >/etc/timezone
 
 # 设置编码
-ENV LANG C.UTF-8
+ENV LANG=C.UTF-8
 
 # 运行golang程序的命令
 ENTRYPOINT ["/apps/ScopeSentry-Scan"]

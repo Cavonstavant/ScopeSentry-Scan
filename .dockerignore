@@ -1,0 +1,10 @@
+# Patterns are relative to the repo root. libs/ (go.mod replace targets),
+# tools/linux and msyh.ttc are needed by the dockerfile.
+.git
+.github
+.idea
+dist
+data
+output
+tools/darwin
+tools/win
