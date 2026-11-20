@@ -22,7 +22,6 @@ import (
 	"github.com/Autumn-27/ScopeSentry-Scan/pkg/utils"
 	"io"
 	"net/url"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -112,18 +111,12 @@ func (p *Plugin) GetModule() string {
 }
 
 func (p *Plugin) Install() error {
-	flag := utils.Tools.CommandExists("uro")
-	if !flag {
-		cmd := exec.Command("pip", "install", "uro")
-
-		// 执行命令并获取输出
-		output, err := cmd.CombinedOutput()
-
-		// 如果有错误，打印错误信息
-		if err != nil {
-			logger.SlogErrorLocal(fmt.Sprintf("install uro error: %v\n", err))
-		}
-		fmt.Println(string(output))
+	// uro is no longer installed at runtime (`pip install uro` fetched and
+	// ran code from PyPI); the Docker image installs it at build time. It is
+	// optional: the URLScan module skips uro deduplication when it is
+	// missing, so this logs instead of failing the wayback plugin.
+	if !utils.Tools.CommandExists("uro") {
+		logger.SlogError("uro not found in PATH: URL deduplication with uro will be skipped. Install it yourself (pip install uro; the Docker image includes it); it is not installed automatically")
 	}
 	return nil
 }

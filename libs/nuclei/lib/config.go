@@ -98,11 +98,14 @@ func WithTemplateFilters(filters TemplateFilters) NucleiSDKOptions {
 type InteractshOpts interactsh.Options
 
 // WithInteractshOptions sets interactsh options
+//
+// ScopeSentry: also accepted by NewThreadSafeNucleiEngineCtx, because the
+// interactsh client is created once in init() and shared by every execution.
+// ExecuteNucleiWithOptsCtx still rejects it, since it cannot change that
+// shared client. Start from interactsh.DefaultOptions: a zero CacheSize or
+// PollDuration makes the client panic.
 func WithInteractshOptions(opts InteractshOpts) NucleiSDKOptions {
 	return func(e *NucleiEngine) error {
-		if e.mode == threadSafe {
-			return ErrOptionsNotSupported.Msgf("WithInteractshOptions")
-		}
 		optsPtr := &opts
 		e.interactshOpts = (*interactsh.Options)(optsPtr)
 		return nil

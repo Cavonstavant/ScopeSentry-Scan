@@ -129,6 +129,12 @@ func (e *ThreadSafeNucleiEngine) ExecuteNucleiWithOptsCtx(ctx context.Context, t
 			return err
 		}
 	}
+	// ScopeSentry: executions share the base engine's interactsh client
+	// (createEphemeralObjects), so per-execution interactsh options would be
+	// silently ignored. Pass them to NewThreadSafeNucleiEngineCtx instead.
+	if tmpEngine.interactshOpts != nil {
+		return ErrOptionsNotSupported.Msgf("WithInteractshOptions")
+	}
 
 	// create ephemeral nuclei objects/instances/types using base nuclei engine
 	unsafeOpts, err := createEphemeralObjects(ctx, e.eng, tmpEngine.opts)

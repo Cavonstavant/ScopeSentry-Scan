@@ -152,20 +152,19 @@ func (p *Plugin) Install() error {
 		return err
 	}
 	RadExecPath := filepath.Join(radPath, p.RadFileName)
-	if _, err := os.Stat(RadExecPath); os.IsNotExist(err) {
-		_, err := utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://raw.githubusercontent.com/Autumn-27/ScopeSentry-Scan/main/tools", p.RadDir, p.RadFileName), RadExecPath)
+	info, err := os.Stat(RadExecPath)
+	if os.IsNotExist(err) {
+		// No runtime download: it fetched an unverified binary from GitHub
+		// (or Gitee) and executed it. The Docker image ships the binary.
+		err = fmt.Errorf("rad binary not found at %s: copy tools/%s/%s from the ScopeSentry-Scan repository there (the Docker image includes it); it is not downloaded automatically", RadExecPath, p.RadDir, p.RadFileName)
+		logger.SlogError(err.Error())
+		return err
+	}
+	if err == nil && p.OsType == "linux" && info.Mode().Perm()&0o111 == 0 {
+		err = os.Chmod(RadExecPath, 0755)
 		if err != nil {
-			_, err = utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://gitee.com/constL/ScopeSentry-Scan/raw/main/tools", p.RadDir, p.RadFileName), RadExecPath)
-			if err != nil {
-				return err
-			}
-		}
-		if p.OsType == "linux" {
-			err = os.Chmod(RadExecPath, 0755)
-			if err != nil {
-				logger.SlogError(fmt.Sprintf("Chmod rad Tool Fail: %s", err))
-				return err
-			}
+			logger.SlogError(fmt.Sprintf("Chmod rad Tool Fail: %s", err))
+			return err
 		}
 	}
 	return nil

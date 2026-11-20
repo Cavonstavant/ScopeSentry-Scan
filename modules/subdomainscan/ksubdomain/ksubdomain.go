@@ -107,17 +107,17 @@ func (p *Plugin) GetModule() string {
 func (p *Plugin) Install() error {
 	ksubdomainPath := filepath.Join(global.ExtDir, "ksubdomain")
 	if err := os.MkdirAll(ksubdomainPath, os.ModePerm); err != nil {
-		logger.SlogError(fmt.Sprintf("Failed to create ksubdomain folder:", err))
+		logger.SlogError(fmt.Sprintf("Failed to create ksubdomain folder: %v", err))
 		return err
 	}
 	targetPath := filepath.Join(ksubdomainPath, "target")
 	if err := os.MkdirAll(targetPath, os.ModePerm); err != nil {
-		logger.SlogError(fmt.Sprintf("Failed to create targetPath folder:", err))
+		logger.SlogError(fmt.Sprintf("Failed to create targetPath folder: %v", err))
 		return err
 	}
 	resultPath := filepath.Join(ksubdomainPath, "result")
 	if err := os.MkdirAll(resultPath, os.ModePerm); err != nil {
-		logger.SlogError(fmt.Sprintf("Failed to create resultPath folder:", err))
+		logger.SlogError(fmt.Sprintf("Failed to create resultPath folder: %v", err))
 		return err
 	}
 	osType := runtime.GOOS
@@ -136,20 +136,19 @@ func (p *Plugin) Install() error {
 		path = "ksubdomain"
 	}
 	KsubdomainExecPath := filepath.Join(ksubdomainPath, path)
-	if _, err := os.Stat(KsubdomainExecPath); os.IsNotExist(err) {
-		_, err := utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://raw.githubusercontent.com/Autumn-27/ScopeSentry-Scan/main/tools", dir, path), KsubdomainExecPath)
+	info, err := os.Stat(KsubdomainExecPath)
+	if os.IsNotExist(err) {
+		// No runtime download: it fetched an unverified binary from GitHub
+		// (or Gitee) and executed it. The Docker image ships the binary.
+		err = fmt.Errorf("ksubdomain binary not found at %s: copy tools/%s/%s from the ScopeSentry-Scan repository there (the Docker image includes it); it is not downloaded automatically", KsubdomainExecPath, dir, path)
+		logger.SlogError(err.Error())
+		return err
+	}
+	if err == nil && osType == "linux" && info.Mode().Perm()&0o111 == 0 {
+		err = os.Chmod(KsubdomainExecPath, 0755)
 		if err != nil {
-			_, err = utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://gitee.com/constL/ScopeSentry-Scan/raw/main/tools", dir, path), KsubdomainExecPath)
-			if err != nil {
-				return err
-			}
-		}
-		if osType == "linux" {
-			err = os.Chmod(KsubdomainExecPath, 0755)
-			if err != nil {
-				logger.SlogError(fmt.Sprintf("Chmod ksubdomain Tool Fail: %s", err))
-				return err
-			}
+			logger.SlogError(fmt.Sprintf("Chmod ksubdomain Tool Fail: %s", err))
+			return err
 		}
 	}
 	return nil
