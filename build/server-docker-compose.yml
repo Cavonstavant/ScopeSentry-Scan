@@ -2,7 +2,12 @@ version: "3.5"
 
 services:
   scope-sentry:
-    image: autumn27/scopesentry:latest
+    # Built from the fork's main branch; pull_policy: build means it is never pulled.
+    image: localhost/scopesentry:local
+    build:
+      context: https://github.com/Cavonstavant/ScopeSentry.git#main
+      dockerfile: dockerfile
+    pull_policy: build
     container_name: scope-sentry
     restart: always
     ports:

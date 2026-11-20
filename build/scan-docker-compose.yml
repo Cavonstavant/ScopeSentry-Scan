@@ -1,7 +1,14 @@
 version: '3'
 services:
   scan:
-    image: autumn27/scopesentry-scan:latest
+    # Built from the fork's main branch; pull_policy: build means it is never pulled.
+    image: localhost/scopesentry-scan:local
+    build:
+      context: https://github.com/Cavonstavant/ScopeSentry-Scan.git#main
+      dockerfile: dockerfile
+    pull_policy: build
+    # tools/linux/* in the image are amd64-only binaries.
+    platform: linux/amd64
     network_mode: host
     container_name: scopesentry-scan
     restart: always
