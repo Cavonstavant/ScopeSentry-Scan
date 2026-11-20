@@ -229,11 +229,11 @@ func (e *NucleiEngine) init(ctx context.Context, p *templates.Parser) error {
 		e.httpxClient = nucleiUtils.GetInputLivenessChecker(client)
 	}
 
-	// Only Happens once regardless how many times this function is called
-	// This will update ignore file to filter out templates with weak matchers to avoid false positives
-	// and also upgrade templates to latest version if available
-	installer.NucleiSDKVersionCheck()
-
+	// ScopeSentry: installer.NucleiSDKVersionCheck() used to be called here
+	// unconditionally. It sent the OS, arch, Go and nuclei versions and a
+	// hashed machine ID to https://api.pdtm.sh/api/v1/tools/nuclei even when
+	// DisableUpdateCheck() was set, so it has been removed. Template updates
+	// stay gated on CanCheckForUpdates() below.
 	if DefaultConfig.CanCheckForUpdates() {
 		return e.processUpdateCheckResults()
 	}
