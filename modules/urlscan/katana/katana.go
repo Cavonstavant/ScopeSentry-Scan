@@ -150,20 +150,19 @@ func (p *Plugin) Install() error {
 		return err
 	}
 	KatanaExecPath := filepath.Join(katanaPath, p.KatanaFileName)
-	if _, err := os.Stat(KatanaExecPath); os.IsNotExist(err) {
-		_, err := utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://raw.githubusercontent.com/Autumn-27/ScopeSentry-Scan/main/tools", p.KatanaDir, p.KatanaFileName), KatanaExecPath)
+	info, err := os.Stat(KatanaExecPath)
+	if os.IsNotExist(err) {
+		// No runtime download: it fetched an unverified binary from GitHub
+		// (or Gitee) and executed it. The Docker image ships the binary.
+		err = fmt.Errorf("katana binary not found at %s: copy tools/%s/%s from the ScopeSentry-Scan repository there (the Docker image includes it); it is not downloaded automatically", KatanaExecPath, p.KatanaDir, p.KatanaFileName)
+		logger.SlogError(err.Error())
+		return err
+	}
+	if err == nil && p.OsType == "linux" && info.Mode().Perm()&0o111 == 0 {
+		err = os.Chmod(KatanaExecPath, 0755)
 		if err != nil {
-			_, err = utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://gitee.com/constL/ScopeSentry-Scan/raw/main/tools", p.KatanaDir, p.KatanaFileName), KatanaExecPath)
-			if err != nil {
-				return err
-			}
-		}
-		if p.OsType == "linux" {
-			err = os.Chmod(KatanaExecPath, 0755)
-			if err != nil {
-				logger.SlogError(fmt.Sprintf("Chmod katana Tool Fail: %s", err))
-				return err
-			}
+			logger.SlogError(fmt.Sprintf("Chmod katana Tool Fail: %s", err))
+			return err
 		}
 	}
 	return nil

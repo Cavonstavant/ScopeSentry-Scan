@@ -147,20 +147,19 @@ func (p *Plugin) Install() error {
 
 	RustscanPath := filepath.Join(global.ExtDir, "rustscan")
 	RustscanExecPath := filepath.Join(RustscanPath, p.RustFileName)
-	if _, err := os.Stat(RustscanExecPath); os.IsNotExist(err) {
-		_, err := utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://raw.githubusercontent.com/Autumn-27/ScopeSentry-Scan/main/tools", p.RustDir, p.RustFileName), RustscanExecPath)
+	info, err := os.Stat(RustscanExecPath)
+	if os.IsNotExist(err) {
+		// No runtime download: it fetched an unverified binary from GitHub
+		// (or Gitee) and executed it. The Docker image ships the binary.
+		err = fmt.Errorf("rustscan binary not found at %s: copy tools/%s/%s from the ScopeSentry-Scan repository there (the Docker image includes it); it is not downloaded automatically", RustscanExecPath, p.RustDir, p.RustFileName)
+		logger.SlogError(err.Error())
+		return err
+	}
+	if err == nil && p.OsType == "linux" && info.Mode().Perm()&0o111 == 0 {
+		err = os.Chmod(RustscanExecPath, 0755)
 		if err != nil {
-			_, err = utils.Tools.HttpGetDownloadFile(fmt.Sprintf("%v/%v/%v", "https://gitee.com/constL/ScopeSentry-Scan/raw/main/tools", p.RustDir, p.RustFileName), RustscanExecPath)
-			if err != nil {
-				return err
-			}
-		}
-		if p.OsType == "linux" {
-			err = os.Chmod(RustscanExecPath, 0755)
-			if err != nil {
-				logger.SlogError(fmt.Sprintf("Chmod rustscan Tool Fail: %s", err))
-				return err
-			}
+			logger.SlogError(fmt.Sprintf("Chmod rustscan Tool Fail: %s", err))
+			return err
 		}
 	}
 	return nil
