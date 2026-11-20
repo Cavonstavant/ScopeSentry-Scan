@@ -155,26 +155,27 @@ func (p *Plugin) Install() error {
 	return nil
 }
 
+// Check confirms the ksubdomain binary is installed where Install() puts it and
+// utils.DNS.KsubdomainVerify runs it from. It is deliberately local-only: it
+// performs no network I/O (no DNS self-test at startup).
 func (p *Plugin) Check() error {
-	rawSubdomain := []string{"baidu.com"}
-	subdomainVerificationResult := make(chan string, 1)
-	verificationCount := 0
-	go utils.DNS.KsubdomainVerify(rawSubdomain, subdomainVerificationResult, 5*time.Minute, context.Background())
-	for result := range subdomainVerificationResult {
-		subdomainResult := utils.DNS.KsubdomainResultToStruct(result)
-		if subdomainResult.Host != "" {
-			verificationCount += 1
-		} else {
-			p.Log(fmt.Sprintf("check error: %v", result), "e")
-		}
+	name := "ksubdomain"
+	if runtime.GOOS == "windows" {
+		name = "ksubdomain.exe"
 	}
-	if verificationCount == 0 {
-		dir, _ := os.Getwd()
-		utils.Tools.DeleteFile(filepath.Join(dir, "ksubdomain.yaml"))
-		return fmt.Errorf("ksubdomain run error")
-	} else {
-		return nil
+	execPath := filepath.Join(global.ExtDir, "ksubdomain", name)
+	info, err := os.Stat(execPath)
+	if err != nil {
+		return fmt.Errorf("ksubdomain binary unavailable: %w", err)
 	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("ksubdomain binary %s is not a regular file (mode %s)", execPath, info.Mode())
+	}
+	// Windows has no execute permission bit.
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
+		return fmt.Errorf("ksubdomain binary %s is not executable (mode %s)", execPath, info.Mode())
+	}
+	return nil
 }
 
 func (p *Plugin) SetParameter(args string) {
