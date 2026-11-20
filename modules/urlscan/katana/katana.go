@@ -259,6 +259,9 @@ func (p *Plugin) Execute(input interface{}) (interface{}, error) {
 		"-u", data.URL,
 		"-depth", maxDepth,
 		"-mrs", "20971520",
+		// Disable katana's update check, which otherwise calls
+		// https://api.pdtm.sh/api/v1/tools/katana on every run.
+		"-duc",
 	}
 	if hl {
 		args = append(args, "-hl")
